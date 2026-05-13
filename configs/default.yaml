@@ -13,7 +13,7 @@ circuit_breaker:
   success_threshold: 1
 cache:
   enabled: true
-  backend: memory          # "memory" (default) or "redis" (requires docker compose up -d)
+  backend: redis          # "memory" (default) or "redis" (requires docker compose up -d)
   ttl_seconds: 300
   similarity_threshold: 0.92
   redis_url: "redis://localhost:6379/0"
@@ -33,4 +33,9 @@ scenarios:
       primary: 0.5
   - name: all_healthy
     description: "Baseline — both providers healthy"
-    provider_overrides: {}
+    provider_overrides:
+      primary: 0.0
+  - name: cache_stress
+    description: "High latency on primary to test cache performance"
+    provider_overrides:
+      primary: 0.1

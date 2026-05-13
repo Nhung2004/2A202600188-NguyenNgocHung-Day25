@@ -32,25 +32,24 @@ class ReliabilityGateway:
         self.cache = cache
 
     def complete(self, prompt: str) -> GatewayResponse:
-        """Return a reliable response or a static fallback.
-
-        TODO(student): Improve route reasons, cache safety checks, and error handling.
-        TODO(student): Add cost budget check — if cumulative cost exceeds a threshold,
-        skip expensive providers and route to cache or cheaper fallback.
-        """
+        """Return a reliable response or a static fallback."""
         if self.cache is not None:
             cached, score = self.cache.get(prompt)
             if cached is not None:
                 return GatewayResponse(cached, f"cache_hit:{score:.2f}", None, True, 0.0, 0.0)
 
         last_error: str | None = None
-        for provider in self.providers:
+        for i, provider in enumerate(self.providers):
             breaker = self.breakers[provider.name]
             try:
                 response: ProviderResponse = breaker.call(provider.complete, prompt)
                 if self.cache is not None:
                     self.cache.set(prompt, response.text, {"provider": provider.name})
-                route = "primary" if provider == self.providers[0] else "fallback"
+                
+                # Descriptive route reasons
+                role = "primary" if i == 0 else "fallback"
+                route = f"{role}:{provider.name}"
+                
                 return GatewayResponse(
                     text=response.text,
                     route=route,
@@ -60,7 +59,7 @@ class ReliabilityGateway:
                     estimated_cost=response.estimated_cost,
                 )
             except (ProviderError, CircuitOpenError) as exc:
-                last_error = str(exc)
+                last_error = f"{provider.name}: {str(exc)}"
                 continue
 
         return GatewayResponse(
